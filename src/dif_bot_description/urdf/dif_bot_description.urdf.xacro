@@ -156,7 +156,17 @@
        Actividad 6: Sensores (IMU, Lidar, Camara)
        Actividad 8: Plugin de control diferencial para GZ Sim
        ======================================================= -->
+  <xacro:arg name="use_ros2_control" default="false"/>
+  <xacro:arg name="use_ekf" default="false"/>
+
   <xacro:include filename="$(find dif_bot_description)/urdf/sensors.xacro"/>
-  <xacro:include filename="$(find dif_bot_description)/urdf/gz_control.xacro"/>
+
+  <xacro:if value="$(arg use_ros2_control)">
+    <xacro:include filename="$(find dif_bot_description)/urdf/ros2_control.xacro"/>
+    <xacro:ros2_control_block/>
+  </xacro:if>
+  <xacro:unless value="$(arg use_ros2_control)">
+    <xacro:include filename="$(find dif_bot_description)/urdf/gz_control.xacro"/>
+  </xacro:unless>
 
 </robot>

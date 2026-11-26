@@ -1,119 +1,86 @@
-"""
-Actividad 8: Integracion con Gazebo Ignition (GZ Sim, Harmonic)
--------------------------------------------------------------------
-1. Genera el URDF final a partir del xacro (robot_state_publisher).
-2. Lanza GZ Sim con el mundo dif_bot_world.sdf.
-3. Crea la entidad del robot en GZ Sim usando el nodo "create" de
-   ros_gz_sim (equivalente ROS 2 / GZ Harmonic al antiguo
-   "ros2 run gazebo_ros spawn_entity.py" de Gazebo clasico), leyendo
-   la descripcion desde el topico /robot_description.
-4. Activa ros_gz_bridge con la configuracion de config/gz_bridge.yaml
-   para exponer cmd_vel, odom, tf, imu, scan y camera/image_raw en ROS 2.
-5. (Opcional) Abre RViz para visualizar el robot simulado.
-
-Uso:
-    ros2 launch dif_bot_description gz_sim_launch.py
-    ros2 launch dif_bot_description gz_sim_launch.py rviz:=false
-
-Comando equivalente manual para crear la entidad (Entregable Actividad 8):
-    ros2 run ros_gz_sim create -name dif_bot -topic robot_description -z 0.2
-"""
-
 import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import (DeclareLaunchArgument, IncludeLaunchDescription)
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 
 
 def generate_launch_description():
-    pkg_dif_bot = get_package_share_directory("dif_bot_description")
-    pkg_ros_gz_sim = get_package_share_directory("ros_gz_sim")
+    pkg = get_package_share_directory("dif_bot_description")
+    gz_pkg = get_package_share_directory("ros_gz_sim")
 
-    default_model_path = os.path.join(
-        pkg_dif_bot, "urdf", "dif_bot_description.urdf.xacro")
-    default_world_path = os.path.join(
-        pkg_dif_bot, "worlds", "dif_bot_world.sdf")
-    default_bridge_config = os.path.join(
-        pkg_dif_bot, "config", "gz_bridge.yaml")
-    default_rviz_config_path = os.path.join(
-        pkg_dif_bot, "rviz", "urdf_config.rviz")
+    model = LaunchConfiguration("model")
+    world = LaunchConfiguration("world")
+    use_ros2_control = LaunchConfiguration("use_ros2_control")
+    use_ekf = LaunchConfiguration("use_ekf")
 
-    model_arg = DeclareLaunchArgument(
-        name="model", default_value=default_model_path,
-        description="Ruta absoluta al archivo xacro/urdf del robot")
-    world_arg = DeclareLaunchArgument(
-        name="world", default_value=default_world_path,
-        description="Ruta absoluta al mundo SDF de GZ Sim")
-    rviz_arg = DeclareLaunchArgument(
-        name="rviz", default_value="true",
-        description="Lanzar o no RViz junto con la simulacion")
+    args = [
+        DeclareLaunchArgument("model", default_value=os.path.join(
+            pkg, "urdf", "dif_bot_description.urdf.xacro")),
+        DeclareLaunchArgument("world", default_value=os.path.join(
+            pkg, "worlds", "dif_bot_world.sdf")),
+        DeclareLaunchArgument("rviz", default_value="false"),
+        DeclareLaunchArgument("use_ros2_control", default_value="false"),
+        DeclareLaunchArgument("use_ekf", default_value="false"),
+    ]
 
-    robot_description = Command(["xacro ", LaunchConfiguration("model")])
+    # ParameterValue evita que ROS intente leer el XML como YAML (error original)
+    robot_description = ParameterValue(
+        Command(["xacro ", model,
+                 " use_ros2_control:=", use_ros2_control,
+                 " use_ekf:=", use_ekf]),
+        value_type=str)
 
-    robot_state_publisher_node = Node(
-        package="robot_state_publisher",
-        executable="robot_state_publisher",
+    rsp = Node(
+        package="robot_state_publisher", executable="robot_state_publisher",
         output="screen",
-        parameters=[{
-            "robot_description": robot_description,
-            "use_sim_time": True,
-        }]
-    )
+        parameters=[{"robot_description": robot_description, "use_sim_time": True}])
 
-    # 1. Lanza GZ Sim (Harmonic) con el mundo indicado.
     gz_sim = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            os.path.join(pkg_ros_gz_sim, "launch", "gz_sim.launch.py")
-        ),
-        launch_arguments={"gz_args": LaunchConfiguration("world")}.items()
-    )
+            os.path.join(gz_pkg, "launch", "gz_sim.launch.py")),
+        launch_arguments={"gz_args": ["-r ", world]}.items())
 
-    # 2. Crea la entidad del robot en GZ Sim a partir de /robot_description.
-    #    Equivale a "ros2 run ros_gz_sim create -name dif_bot -topic robot_description"
-    spawn_entity = Node(
-        package="ros_gz_sim",
-        executable="create",
-        arguments=[
-            "-name", "dif_bot",
-            "-topic", "robot_description",
-            "-z", "0.2",
-        ],
-        output="screen"
-    )
+    spawn = Node(
+        package="ros_gz_sim", executable="create", output="screen",
+        arguments=["-name", "dif_bot", "-topic", "robot_description", "-z", "0.2"])
 
-    # 3. Puente ROS 2 <-> GZ Transport (cmd_vel, odom, tf, imu, scan, camara)
-    bridge_node = Node(
-        package="ros_gz_bridge",
-        executable="parameter_bridge",
-        parameters=[{
-            "config_file": default_bridge_config,
-            "use_sim_time": True,
-        }],
-        output="screen"
-    )
+    bridge = Node(
+        package="ros_gz_bridge", executable="parameter_bridge", output="screen",
+        parameters=[{"config_file": os.path.join(pkg, "config", "gz_bridge.yaml"),
+                     "use_sim_time": True}])
 
-    rviz_node = Node(
-        package="rviz2",
-        executable="rviz2",
-        name="rviz2",
-        output="screen",
-        arguments=["-d", default_rviz_config_path],
-        condition=IfCondition(LaunchConfiguration("rviz")),
+    rviz = Node(
+        package="rviz2", executable="rviz2", output="screen",
+        arguments=["-d", os.path.join(pkg, "rviz", "urdf_config.rviz")],
         parameters=[{"use_sim_time": True}],
-    )
+        condition=IfCondition(LaunchConfiguration("rviz")))
 
-    return LaunchDescription([
-        model_arg,
-        world_arg,
-        rviz_arg,
-        gz_sim,
-        robot_state_publisher_node,
-        spawn_entity,
-        bridge_node,
-        rviz_node,
-    ])
+    # Modo ros2_control (Practica 1)
+    spawner_jsb = Node(
+        package="controller_manager", executable="spawner",
+        arguments=["joint_state_broadcaster", "--controller-manager-timeout", "60"],
+        condition=IfCondition(use_ros2_control))
+    spawner_dd = Node(
+        package="controller_manager", executable="spawner",
+        arguments=["diff_drive_controller", "--controller-manager-timeout", "60",
+                   "--controller-ros-args",
+                   "-r /diff_drive_controller/cmd_vel:=/cmd_vel "
+                   "-r /diff_drive_controller/odom:=/odom"],
+        condition=IfCondition(use_ros2_control))
+
+    # EKF opcional (Practica 2)
+    ekf = Node(
+        package="robot_localization", executable="ekf_node", name="ekf_filter_node",
+        output="screen",
+        parameters=[os.path.join(pkg, "config", "ekf.yaml"), {"use_sim_time": True}],
+        remappings=[("odometry/filtered", "/odom_filtered")],
+        condition=IfCondition(use_ekf))
+
+    return LaunchDescription(args + [gz_sim, rsp, spawn, bridge, rviz,
+                                     spawner_jsb, spawner_dd, ekf])
