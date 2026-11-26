@@ -27,9 +27,10 @@
   <gazebo reference="imu_link">
     <material>Gazebo/Red</material>
     <sensor name="imu_sensor" type="imu">
+      <gz_frame_id>imu_link</gz_frame_id>
       <always_on>true</always_on>
       <update_rate>100</update_rate>
-      <visualize>true</visualize>
+      <visualize>false</visualize>
       <!-- En GZ Sim (Harmonic) el sensor publica directamente en este topico
            de gz-transport; no requiere un <plugin> como en Gazebo clasico.
            Se bridgea a ROS 2 con ros_gz_bridge (ver config/gz_bridge.yaml). -->
@@ -77,8 +78,9 @@
   <gazebo reference="lidar_link">
     <material>Gazebo/Red</material>
     <sensor name="lidar" type="gpu_lidar">
+      <gz_frame_id>lidar_link</gz_frame_id>
       <always_on>true</always_on>
-      <visualize>true</visualize>
+      <visualize>false</visualize>
       <update_rate>5</update_rate>
       <topic>scan</topic>
       <lidar>
@@ -139,9 +141,9 @@
   <gazebo reference="camera_link">
     <material>Gazebo/Red</material>
     <sensor name="camera" type="camera">
-      <always_on>true</always_on>
+      <always_on>false</always_on>
       <update_rate>30.0</update_rate>
-      <visualize>true</visualize>
+      <visualize>false</visualize>
       <topic>camera/image_raw</topic>
       <camera name="camera">
         <horizontal_fov>1.047198</horizontal_fov>
