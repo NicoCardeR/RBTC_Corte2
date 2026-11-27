@@ -20,7 +20,6 @@ diff_drive_controller:
     enable_odom_tf: true
     open_loop: false
     cmd_vel_timeout: 0.5
-    use_stamped_vel: false
     linear.x.max_velocity: 0.5
     angular.z.max_velocity: 1.5
     pose_covariance_diagonal: [0.001, 0.001, 1000000.0, 1000000.0, 1000000.0, 0.01]
