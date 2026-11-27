@@ -19,14 +19,11 @@
 
       <topic>cmd_vel</topic>
       <odom_topic>odom</odom_topic>
-      <tf_topic>tf</tf_topic>
+      <xacro:if value="$(arg use_ekf)"><tf_topic>tf_plugin_sin_usar</tf_topic></xacro:if>
+      <xacro:unless value="$(arg use_ekf)"><tf_topic>tf</tf_topic></xacro:unless>
 
       <odom_publish_frequency>50</odom_publish_frequency>
       <publish_odom>true</publish_odom>
-      <!-- con use_ekf:=true el EKF publica odom->base_link -->
-      <xacro:if value="$(arg use_ekf)"><publish_odom_tf>false</publish_odom_tf></xacro:if>
-      <xacro:unless value="$(arg use_ekf)"><publish_odom_tf>true</publish_odom_tf></xacro:unless>
-      <publish_wheel_tf>false</publish_wheel_tf>
 
       <frame_id>odom</frame_id>
       <child_frame_id>base_link</child_frame_id>
