@@ -2,7 +2,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, IncludeLaunchDescription
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import Command, LaunchConfiguration
@@ -70,9 +70,14 @@ def generate_launch_description():
         package="controller_manager", executable="spawner",
         arguments=["diff_drive_controller", "--controller-manager-timeout", "60",
                    "--controller-ros-args",
-                   "-r /diff_drive_controller/cmd_vel:=/cmd_vel "
+                   "-r /diff_drive_controller/cmd_vel:=/cmd_vel_stamped "
                    "-r /diff_drive_controller/odom:=/odom"],
         condition=IfCondition(use_ros2_control))
+
+    stamper = ExecuteProcess(
+        cmd=["python3", os.path.join(pkg, "scripts", "twist_stamper.py"),
+             "--ros-args", "-p", "use_sim_time:=true"],
+        output="screen", condition=IfCondition(use_ros2_control))
 
     # EKF opcional (Practica 2)
     ekf = Node(
@@ -83,4 +88,4 @@ def generate_launch_description():
         condition=IfCondition(use_ekf))
 
     return LaunchDescription(args + [gz_sim, rsp, spawn, bridge, rviz,
-                                     spawner_jsb, spawner_dd, ekf])
+                                     spawner_jsb, spawner_dd, stamper, ekf])

@@ -6,7 +6,7 @@ find_package(ament_cmake REQUIRED)
 # Instala urdf, launch, rviz, config y worlds para que sean visibles
 # desde el paquete instalado (share/dif_bot_description/...)
 install(
-  DIRECTORY urdf launch rviz config worlds maps behavior_trees
+  DIRECTORY urdf launch rviz config worlds maps behavior_trees scripts
   DESTINATION share/${PROJECT_NAME}
 )
 
